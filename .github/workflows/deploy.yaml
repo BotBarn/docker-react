@@ -11,9 +11,18 @@ jobs:
     steps:
       # Code aus dem Repository klonen
       - uses: actions/checkout@v2
-      
+
+      # Cache für Node.js-Abhängigkeiten
+      - name: Cache Node.js modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
       # Docker-Image für Tests bauen
-      - run: docker build -t bhcir/react-test -f Dockerfile.dev .
+      - run: docker build --cache-from bhcir/react-test -t bhcir/react-test -f Dockerfile.dev .
 
       # Tests ausführen
       - run: docker run -e CI=true bhcir/react-test npm test
@@ -28,8 +37,8 @@ jobs:
       # Docker-Login
       - run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin || exit 1
 
-      # Produktions-Docker-Image bauen
-      - run: docker build -t bhcir/react-prod -f Dockerfile .
+      # Produktions-Docker-Image bauen mit Cache
+      - run: docker build --cache-from bhcir/react-prod -t bhcir/react-prod -f Dockerfile .
 
       # Docker-Image auf Docker Hub pushen
       - run: docker push bhcir/react-prod
