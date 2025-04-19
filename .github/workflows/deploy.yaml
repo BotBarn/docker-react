@@ -43,6 +43,7 @@ jobs:
       # Docker-Image auf Docker Hub pushen
       - run: docker push bhcir/react-prod
 
+
       # Anwendung auf die VM deployen
       - name: Deploy to VM
         uses: appleboy/ssh-action@v1.0.0
