@@ -42,18 +42,3 @@ jobs:
 
       # Docker-Image auf Docker Hub pushen
       - run: docker push bhcir/react-prod
-
-
-      # Anwendung auf die VM deployen
-      - name: Deploy to VM
-        uses: appleboy/ssh-action@v1.0.0
-        with:
-          host: ${{ secrets.VM_HOST }}
-          username: ${{ secrets.VM_USER }}
-          key: ${{ secrets.VM_SSH_KEY }}
-          script: |
-            docker login -u "${{ secrets.DOCKER_USERNAME }}" -p "${{ secrets.DOCKER_PASSWORD }}"
-            docker pull bhcir/react-prod
-            docker stop react-app || true
-            docker rm react-app || true
-            docker run -d --name react-app -p 80:80 bhcir/react-prod
