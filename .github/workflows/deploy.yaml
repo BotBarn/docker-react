@@ -1,14 +1,49 @@
-name: Deploy Frontend
+name: CI/CD Pipeline
+
 on:
   push:
     branches:
       - master
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
+      # Code aus dem Repository klonen
       - uses: actions/checkout@v2
-      - run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin || exit 1
+      
+      # Docker-Image für Tests bauen
       - run: docker build -t bhcir/react-test -f Dockerfile.dev .
+
+      # Tests ausführen
       - run: docker run -e CI=true bhcir/react-test npm test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      # Code aus dem Repository klonen
+      - uses: actions/checkout@v2
+
+      # Docker-Login
+      - run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin || exit 1
+
+      # Produktions-Docker-Image bauen
+      - run: docker build -t bhcir/react-prod -f Dockerfile .
+
+      # Docker-Image auf Docker Hub pushen
+      - run: docker push bhcir/react-prod
+
+      # Anwendung auf die VM deployen
+      - name: Deploy to VM
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
+          docker login -u "${{ secrets.DOCKER_USERNAME }}" -p "${{ secrets.DOCKER_PASSWORD }}"
+          docker pull bhcir/react-prod
+          docker stop react-app || true
+          docker rm react-app || true
+          docker run -d --name react-app -p 80:80 bhcir/react-prod
+          EOF
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
